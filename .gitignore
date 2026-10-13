@@ -1,0 +1,8 @@
+# Resolved follow-ups — kept locally so old IDs stay readable, never committed
+/openspec/followup/resolved/*
+!/openspec/followup/resolved/.gitkeep
+
+# IDE and Python
+/.idea/
+.venv/
+__pycache__/
