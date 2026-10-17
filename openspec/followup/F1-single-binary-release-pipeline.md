@@ -26,7 +26,7 @@ RoughCut. Without an automated pipeline, releases are manual and error-prone.
 - The repo is public, so release binaries can be downloaded by anyone, and
   Actions on `windows-latest` cost nothing. RoughCut is licensed GPLv3, so
   the release must include or point to the source and keep licence notices
-  (the public repo covers source). The repo has no `LICENSE` file yet.
+  (the public repo covers source).
 - Options considered: PyInstaller `--onefile` (truly self-contained, but
   hidden-import/`--add-data` friction and antivirus false positives), Nuitka
   (compiled, slow builds, needs a C compiler), zipapp/shiv/pex (needs Python on
