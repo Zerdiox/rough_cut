@@ -2,14 +2,15 @@ schema: spec-driven
 
 context: |
   RoughCut: a Windows-first desktop tool that lets Azzey, a non-technical user, make a rough cut of
-  video recordings from markers (keep/cut points) quickly and easily. Python + Tkinter GUI, FFmpeg
-  for all media work, shipped via .bat launchers. Ease of use beats feature count.
+  video recordings from the moments he marked, one file per clip. Python 3.14 + PySide6 with
+  QFluentWidgets (Fluent design, light and dark), FFmpeg for all media work, shipped via .bat
+  launchers. Ease of use beats feature count.
   `python -m unittest discover -s tests` is the gate before any commit.
 
   How OpenSpec is used here:
   - A change's artifacts are the plan; don't also run superpowers brainstorming or writing-plans.
     TDD and verification-before-completion still govern apply.
-  - Subagents are welcome for read-only work in any command: codebase and FFmpeg/Tkinter
+  - Subagents are welcome for read-only work in any command: codebase and FFmpeg/PySide6/QFluentWidgets
     research during explore, propose and apply (fan out independent lookups), and during apply a
     review of the finished diff against the change's specs and design. Writing artifacts and
     implementation stay in the main session, one task at a time, since tasks share files and the
