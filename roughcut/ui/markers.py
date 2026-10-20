@@ -6,13 +6,30 @@ from PySide6.QtWidgets import (
     QAbstractButton, QButtonGroup, QGridLayout, QHBoxLayout, QListWidgetItem, QVBoxLayout, QWidget,
 )
 from qfluentwidgets import (
-    BodyLabel, CaptionLabel, FluentIcon, LineEdit, ListWidget, PlainTextEdit, SpinBox,
-    StrongBodyLabel, SubtitleLabel, SwitchButton, ToolButton,
+    BodyLabel, CaptionLabel, FluentIcon, Flyout, FlyoutViewBase, LineEdit, ListWidget,
+    PlainTextEdit, SpinBox, StrongBodyLabel, SubtitleLabel, SwitchButton, ToolButton,
 )
 
 from roughcut.ui import theme
+from roughcut.ui.fold_panel import FoldPanel
 
 ID_ROLE = Qt.ItemDataRole.UserRole
+
+
+def marker_summary(session):
+    """What the marker editor's header says, folded or open."""
+    marker = session.selected_marker()
+    if marker is None:
+        return "No marker selected"
+    return f"{marker.name or 'Unnamed'} · {theme.format_time(marker.time_ms)}"
+
+
+def handles_summary(session):
+    """What the auto-handle header says, folded or open."""
+    handles = session.handles
+    if not handles.enabled:
+        return "Off"
+    return f"On, {handles.before_ms // 1000} s / {handles.after_ms // 1000} s"
 
 
 class ColorDot(QWidget):
@@ -109,6 +126,10 @@ class MarkerList(QWidget):
                 self.list.scrollToItem(self.list.item(row))
         self.list.blockSignals(False)
 
+    def sizeHint(self):
+        # The list takes whatever height the side panel has left, so it asks for no more than its minimum.
+        return QSize(super().sizeHint().width(), self.minimumSizeHint().height())
+
     def _current_changed(self, current, previous):
         self.session.select_marker(current.data(ID_ROLE) if current else None)
 
@@ -134,6 +155,24 @@ class ColorChoice(QAbstractButton):
         painter.drawEllipse(QRectF(5, 5, 12, 12))
 
 
+class ColorPicker(FlyoutViewBase):
+    """Every marker color in an 8x2 grid, the current one ringed."""
+
+    def __init__(self, current, on_pick, parent=None):
+        super().__init__(parent)
+        self.choices = QButtonGroup(self)
+        self.choices.setExclusive(True)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(10, 10, 10, 10)
+        grid.setSpacing(2)
+        for index, color_name in enumerate(theme.MARKER_COLORS):
+            choice = ColorChoice(color_name)
+            choice.setChecked(color_name == current)
+            self.choices.addButton(choice)
+            grid.addWidget(choice, index // 8, index % 8)
+        self.choices.buttonClicked.connect(lambda button: on_pick(button.color_name))
+
+
 class MarkerEditor(QWidget):
     """Name, color and note of the selected marker."""
 
@@ -150,23 +189,22 @@ class MarkerEditor(QWidget):
         self.note.setFixedHeight(52)
         self.note.textChanged.connect(lambda: self._update(note=self.note.toPlainText()))
 
-        self.colors = QButtonGroup(self)
-        self.colors.setExclusive(True)
-        palette = QGridLayout()
-        palette.setSpacing(2)
-        for index, color_name in enumerate(theme.MARKER_COLORS):
-            choice = ColorChoice(color_name)
-            self.colors.addButton(choice)
-            palette.addWidget(choice, index // 8, index % 8)
-        self.colors.buttonClicked.connect(lambda button: self._update(color=button.color_name))
+        self.color = ColorChoice("Blue")
+        self.color.setCheckable(False)
+        self.color.clicked.connect(self._open_colors)
+        self.flyout = None
+
+        name_row = QHBoxLayout()
+        name_row.setSpacing(6)
+        name_row.addWidget(self.name, 1)
+        name_row.addWidget(self.color)
 
         self.fields = QWidget()
         fields = QVBoxLayout(self.fields)
         fields.setContentsMargins(0, 0, 0, 0)
         fields.setSpacing(6)
         fields.addWidget(self.time)
-        fields.addWidget(self.name)
-        fields.addLayout(palette)
+        fields.addLayout(name_row)
         fields.addWidget(self.note)
 
         layout = QVBoxLayout(self)
@@ -187,9 +225,26 @@ class MarkerEditor(QWidget):
         self.time.setText(f"Marker at {theme.format_time(marker.time_ms)}")
         self.name.setText(marker.name)
         self.note.setPlainText(marker.note)
-        for button in self.colors.buttons():
-            button.setChecked(button.color_name == marker.color)
+        self._show_color(marker.color)
         self._loading = False
+
+    def _show_color(self, color_name):
+        self.color.color_name = color_name
+        self.color.setToolTip(color_name)
+        self.color.update()
+
+    def _open_colors(self):
+        picker = ColorPicker(self.color.color_name, self._pick_color)
+        self.flyout = Flyout.make(picker, self.color, self.window())
+        self.flyout.closed.connect(self._colors_closed)
+
+    def _pick_color(self, color_name):
+        self._update(color=color_name)
+        self._show_color(color_name)
+        self.flyout.close()
+
+    def _colors_closed(self):
+        self.flyout = None
 
     def _update(self, **fields):
         if getattr(self, "_loading", False) or self.session.selected_marker_id is None:
@@ -275,3 +330,15 @@ class HandleSettingsPanel(QWidget):
                 widget.setValue(value)
                 widget.setEnabled(handles.enabled)
             widget.blockSignals(False)
+
+
+def marker_editor_panel(session):
+    """The marker editor in a fold panel, open if a marker is selected; after that only its header folds it."""
+    return FoldPanel("Marker", MarkerEditor(session), session, marker_summary,
+                     folded=session.selected_marker() is None)
+
+
+def handle_settings_panel(session):
+    """The auto-handle settings in a fold panel, starting folded."""
+    return FoldPanel("Suggest clips", HandleSettingsPanel(session), session, handles_summary,
+                     folded=True)

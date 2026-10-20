@@ -23,6 +23,13 @@ def main_loaded():
     return _loaded()
 
 
+@story("Screens", "Main", "both panels folded")
+def main_folded():
+    window = _loaded()
+    window.marker_panel.set_open(False)
+    return window
+
+
 @story("Screens", "Main", "export dialog over main")
 def main_export():
     window = _loaded()

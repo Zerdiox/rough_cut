@@ -33,6 +33,7 @@ class TransportBar(QWidget):
         keys.setToolTip(NOT_YET)
         layout.addWidget(keys)
         session.changed.connect(self.refresh)
+        session.playheadChanged.connect(self.refresh)
         self.refresh()
 
     def refresh(self):

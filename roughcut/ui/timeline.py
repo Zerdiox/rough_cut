@@ -113,7 +113,8 @@ class DetailStrip(QWidget):
         self.setMinimumHeight(self.RULER + self.FLAGS + self.TRACK + 8)
         self.setMaximumHeight(self.RULER + self.FLAGS + self.TRACK + 8)
         session.changed.connect(self.update)
-        session.selectionChanged.connect(self.update)
+        session.selectionChanged.connect(self._follow_selection)
+        session.playheadChanged.connect(self.update)
 
     # visible range
 
@@ -128,6 +129,13 @@ class DetailStrip(QWidget):
     def center_on(self, ms):
         span = self.view_end - self.view_start
         self.set_visible_range(ms - span // 2, ms - span // 2 + span)
+
+    def _follow_selection(self):
+        """Bring a newly selected marker into view; one already in view stays put."""
+        marker = self.session.selected_marker()
+        if marker and not self.view_start <= marker.time_ms <= self.view_end:
+            self.center_on(marker.time_ms)
+        self.update()
 
     def _x(self, ms):
         return (ms - self.view_start) * self.width() / max(1, self.view_end - self.view_start)

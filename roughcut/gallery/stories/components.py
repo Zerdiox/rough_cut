@@ -5,7 +5,9 @@ from roughcut.gallery.fixtures import at
 from roughcut.gallery.registry import story
 from roughcut.model.recording import HandleSettings
 from roughcut.ui.export_dialog import ExportPanel
-from roughcut.ui.markers import HandleSettingsPanel, MarkerEditor, MarkerList
+from roughcut.ui.markers import (
+    HandleSettingsPanel, MarkerEditor, MarkerList, handle_settings_panel, marker_editor_panel,
+)
 from roughcut.ui.session import Session
 from roughcut.ui.summary_bar import SummaryBar
 from roughcut.ui.transport_bar import TransportBar
@@ -68,6 +70,27 @@ def marker_editor_unnamed():
     return _sized(MarkerEditor(session), 320)
 
 
+@story("Components", "Marker editor", "folded, nothing selected")
+def marker_editor_folded():
+    return _sized(marker_editor_panel(Session(fixtures.raid_night())), 330)
+
+
+@story("Components", "Marker editor", "open in its panel")
+def marker_editor_open():
+    session = Session(fixtures.raid_night())
+    session.select_marker(1)
+    return _sized(marker_editor_panel(session), 330)
+
+
+@story("Components", "Marker editor", "folded, unnamed marker")
+def marker_editor_folded_unnamed():
+    session = Session(fixtures.raid_night())
+    session.select_marker(4)
+    panel = marker_editor_panel(session)
+    panel.set_open(False)
+    return _sized(panel, 330)
+
+
 # Auto-handle settings
 
 @story("Components", "Auto-handle settings", "on, 20 s before, 5 s after")
@@ -78,6 +101,24 @@ def handles_on():
 @story("Components", "Auto-handle settings", "off")
 def handles_off():
     return _sized(HandleSettingsPanel(Session(fixtures.raid_night(), HandleSettings(enabled=False))), 320)
+
+
+@story("Components", "Auto-handle settings", "folded, on")
+def handles_folded_on():
+    return _sized(handle_settings_panel(Session(fixtures.raid_night())), 330)
+
+
+@story("Components", "Auto-handle settings", "folded, off")
+def handles_folded_off():
+    session = Session(fixtures.raid_night(), HandleSettings(enabled=False))
+    return _sized(handle_settings_panel(session), 330)
+
+
+@story("Components", "Auto-handle settings", "open in its panel")
+def handles_open():
+    panel = handle_settings_panel(Session(fixtures.raid_night()))
+    panel.set_open(True)
+    return _sized(panel, 330)
 
 
 # Transport bar

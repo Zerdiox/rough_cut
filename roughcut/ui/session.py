@@ -1,8 +1,9 @@
 """The editing session every widget reads from and edits through.
 
 Widgets never talk to each other: they call the session and repaint when it
-emits `changed` (anything about markers, windows, handles or clip names) or
-`selectionChanged` (which marker is selected).
+emits `changed` (anything about markers, windows, handles or clip names),
+`selectionChanged` (which marker is selected) or `playheadChanged` (where the
+playhead is; kept apart from `changed` because it will move many times a second).
 """
 
 from PySide6.QtCore import QObject, Signal
@@ -15,6 +16,7 @@ from roughcut.model.recording import HandleSettings
 class Session(QObject):
     changed = Signal()
     selectionChanged = Signal()
+    playheadChanged = Signal()
 
     def __init__(self, recording, handles=None, playhead_ms=0, parent=None):
         super().__init__(parent)
@@ -84,7 +86,15 @@ class Session(QObject):
         if changed:
             self.changed.emit()
 
+    def set_playhead(self, ms):
+        if self.playhead_ms != ms:
+            self.playhead_ms = ms
+            self.playheadChanged.emit()
+
     def select_marker(self, marker_id):
+        """Select a marker and move the playhead to it; clearing leaves the playhead."""
         if self.selected_marker_id != marker_id:
             self.selected_marker_id = marker_id
+            if marker_id is not None:
+                self.set_playhead(self.recording.marker(marker_id).time_ms)
             self.selectionChanged.emit()
