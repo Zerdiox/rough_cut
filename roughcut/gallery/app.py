@@ -1,12 +1,15 @@
 """The gallery window: a story tree on the left, the selected story on the right."""
 
 import importlib
+import os
+import sys
 import traceback
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QPlainTextEdit, QScrollArea, QTreeWidgetItem, QVBoxLayout, QWidget,
+    QApplication, QFrame, QHBoxLayout, QPlainTextEdit, QScrollArea, QTreeWidgetItem, QVBoxLayout,
+    QWidget,
 )
 from qfluentwidgets import (
     BodyLabel, CaptionLabel, StrongBodyLabel, SwitchButton, Theme, TitleLabel, TreeWidget,
@@ -23,6 +26,19 @@ def _theme():
     return importlib.import_module("roughcut.ui.theme")
 
 
+def _start_new_gallery(args):
+    """Start a fresh gallery with `args` and leave this one; False if it couldn't start.
+
+    exit(), not quit(): quit() only asks the windows to close and is dropped if
+    one declines, which left the old gallery running beside the new one.
+    """
+    result = QProcess.startDetached(sys.executable, args, str(reloading.ROOT.parent))
+    started = result[0] if isinstance(result, tuple) else result
+    if started:
+        QApplication.exit(0)
+    return started
+
+
 class _StoryLayout(QVBoxLayout):
     """Lays out the story on the stage.
 
@@ -36,8 +52,9 @@ class _StoryLayout(QVBoxLayout):
 
 
 class GalleryWindow(QWidget):
-    def __init__(self, start_story=None, watch=True):
+    def __init__(self, start_story=None, watch=True, replace_pid=None):
         super().__init__()
+        self.replace_pid = replace_pid
         self.setObjectName("GalleryWindow")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         self.setWindowTitle("RoughCut Gallery")
@@ -91,10 +108,18 @@ class GalleryWindow(QWidget):
         root.addLayout(top)
         root.addLayout(body, 1)
 
+        # A save to the gallery's own files restarts it, once a child process
+        # has shown that the saved files load.
+        self.shell = reloading.ShellSnapshot()
+        self.check = reloading.ShellCheck(parent=self)
+        self.check.finished.connect(self._shell_checked)
+        self.restart = _start_new_gallery
+        self.restarted = False
+
         self.reloader = None
         if watch:
             self.reloader = reloading.Reloader(parent=self)
-            self.reloader.sourcesChanged.connect(self.reload)
+            self.reloader.sourcesChanged.connect(self._sources_changed)
 
         self.reload()
 
@@ -115,6 +140,51 @@ class GalleryWindow(QWidget):
         if self.registry.find(self.current_key or ()) is None:
             self.current_key = stories[0].key if stories else None
         self._show_current()
+
+    def _sources_changed(self):
+        if self.restarted:
+            return  # the new gallery handles saves from here on
+        if self.shell.changed():
+            self.check.start()
+        else:
+            self.reload()
+
+    def _shell_checked(self, ok, error):
+        if self.restarted:
+            return
+        if not ok:
+            self._clear_stage()
+            self._show_error("The gallery window failed to load", error,
+                             "Fix the file and save; the gallery restarts on its own.")
+            return
+        args = ["-m", "roughcut.gallery", "--theme", "dark" if isDarkTheme() else "light",
+                "--replace", str(os.getpid())]
+        if self.current_key:
+            args += ["--story", "/".join(self.current_key)]
+        # Set before restarting: the restart code is itself part of what gets
+        # edited, and if it raises after starting a new gallery, this one must
+        # still never start another.
+        self.restarted = True
+        try:
+            started = self.restart(args)
+        except Exception:
+            self._clear_stage()
+            self._show_error("The gallery couldn't restart", traceback.format_exc(),
+                             "A new gallery may have opened anyway. Close this one.")
+            return
+        if not started:
+            self.restarted = False
+            self._clear_stage()
+            self._show_error("The gallery couldn't restart",
+                             "Starting a new gallery failed.", "Close this one and start it again.")
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self.replace_pid is not None:
+            # The gallery this one replaces normally leaves by itself; ending it
+            # here covers one whose restart code was broken by the edit.
+            pid, self.replace_pid = self.replace_pid, None
+            QTimer.singleShot(0, lambda: reloading.end_process(pid))
 
     def show_story(self, key):
         self.current_key = tuple(key)
@@ -149,10 +219,10 @@ class GalleryWindow(QWidget):
         self.story_widget = widget
         self.stage.setWidget(frame)
 
-    def _show_error(self, title, text):
+    def _show_error(self, title, text, hint="Fix the file and save; the story comes back on its own."):
         theme = _theme()
         self.stage_title.setText(title)
-        self.stage_hint.setText("Fix the file and save; the story comes back on its own.")
+        self.stage_hint.setText(hint)
         box = QPlainTextEdit(text)
         box.setReadOnly(True)
         box.setFont(QFont("Consolas", 10))

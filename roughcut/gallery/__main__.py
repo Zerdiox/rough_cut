@@ -23,11 +23,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m roughcut.gallery")
     parser.add_argument("--story", help='open this story first, e.g. "Components/Timeline/merged windows"')
     parser.add_argument("--theme", choices=["light", "dark"], default="light")
+    parser.add_argument("--replace", type=int, help="process id of the gallery this one replaces")
     args = parser.parse_args(argv)
 
     app = QApplication(sys.argv[:1])
     setTheme(Theme.DARK if args.theme == "dark" else Theme.LIGHT)
-    window = GalleryWindow(start_story=args.story.split("/") if args.story else None)
+    window = GalleryWindow(start_story=args.story.split("/") if args.story else None,
+                           replace_pid=args.replace)
     window.showMaximized()
     return app.exec()
 

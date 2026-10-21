@@ -212,10 +212,16 @@ class MarkerEditor(QWidget):
         layout.addWidget(self.nothing)
         layout.addWidget(self.fields)
 
+        session.changed.connect(self.refresh)
         session.selectionChanged.connect(self.refresh)
         self.refresh()
 
     def refresh(self):
+        """Show the selected marker as it is now, touching only fields that differ.
+
+        Typing sends every keystroke to the session, which emits `changed`; by
+        then the field already matches, so it is left alone and keeps its cursor.
+        """
         marker = self.session.selected_marker()
         self.nothing.setVisible(marker is None)
         self.fields.setVisible(marker is not None)
@@ -223,9 +229,12 @@ class MarkerEditor(QWidget):
             return
         self._loading = True
         self.time.setText(f"Marker at {theme.format_time(marker.time_ms)}")
-        self.name.setText(marker.name)
-        self.note.setPlainText(marker.note)
-        self._show_color(marker.color)
+        if self.name.text() != marker.name:
+            self.name.setText(marker.name)
+        if self.note.toPlainText() != marker.note:
+            self.note.setPlainText(marker.note)
+        if self.color.color_name != marker.color:
+            self._show_color(marker.color)
         self._loading = False
 
     def _show_color(self, color_name):
@@ -240,7 +249,6 @@ class MarkerEditor(QWidget):
 
     def _pick_color(self, color_name):
         self._update(color=color_name)
-        self._show_color(color_name)
         self.flyout.close()
 
     def _colors_closed(self):

@@ -44,8 +44,9 @@ SHALL follow the switch immediately.
 - **THEN** the story and the gallery redraw in the dark theme without losing the selected story
 
 ### Requirement: Saved changes appear without restarting
-When a source file of RoughCut's interface is saved while the gallery is open, the gallery SHALL
-redraw the shown story with the change, keeping the selected story and theme.
+When a source file of RoughCut's interface, or of the gallery window itself, is saved while the
+gallery is open, the gallery SHALL show the change without the user restarting it, keeping the
+selected story and theme.
 
 #### Scenario: Editing a component
 - **WHEN** a component's file is changed and saved while its story is shown
@@ -55,6 +56,17 @@ redraw the shown story with the change, keeping the selected story and theme.
 - **WHEN** a saved change makes the story fail to build
 - **THEN** the main area shows the error message instead of the story and the gallery stays open;
   the story returns once the file is fixed and saved again
+
+#### Scenario: Editing the gallery window
+- **WHEN** one of the gallery window's own files is changed and saved while the dark theme and the
+  "Main (loaded)" story are shown
+- **THEN** within a few seconds the gallery shows the change, on "Main (loaded)" in the dark theme,
+  without the user starting it again
+
+#### Scenario: Saving a broken gallery window file
+- **WHEN** a saved change to one of the gallery window's own files makes the gallery fail to load
+- **THEN** the main area shows the error message and the gallery stays open on its previous version;
+  once the file is fixed and saved again, the gallery shows the change on the same story and theme
 
 ### Requirement: Screens show the full window
 The gallery SHALL include screen stories that show the complete RoughCut main window, empty and with a

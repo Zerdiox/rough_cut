@@ -22,8 +22,9 @@ python -m roughcut.gallery --story "Components/Timeline/merged windows" --theme 
 
 While the gallery is open, saving any file under `roughcut/` redraws the story you're looking at.
 If a change breaks a story, the error shows in its place until the file is fixed and saved again.
-Changes to the gallery window itself (`roughcut/gallery/app.py`, `reloader.py`, `__main__.py`) need a
-restart.
+Saving the gallery window itself (`roughcut/gallery/app.py`, `reloader.py`, `__main__.py`) restarts
+the gallery on the same story and theme; if the saved file doesn't load, the error shows instead and
+the gallery stays open until it's fixed.
 
 ## Tests
 
